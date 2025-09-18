@@ -310,7 +310,6 @@ def main():
     
     pred_pace.update_layout(height=400)
     st.plotly_chart(pred_pace, use_container_width=True)
-    st.plotly_chart(pred_pace, use_container_width=True)
     
     # Reset authentication
     if st.button("🚪 Logout"):
