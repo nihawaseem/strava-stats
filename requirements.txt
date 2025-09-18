@@ -5,3 +5,4 @@ requests>=2.28.0
 matplotlib
 numpy
 scikit-learn
+python-dotenv

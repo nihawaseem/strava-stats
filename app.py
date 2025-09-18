@@ -7,14 +7,15 @@ from datetime import datetime, timedelta
 import os
 from urllib.parse import urlencode
 import numpy as np
-import matplotlib.pyplot as plt
 from sklearn.linear_model import LinearRegression
+from dotenv import load_dotenv
 
 
 # Strava API configuration
+load_dotenv()
 STRAVA_CLIENT_ID = os.getenv('STRAVA_CLIENT_ID', 'your_client_id_here')
 STRAVA_CLIENT_SECRET = os.getenv('STRAVA_CLIENT_SECRET', 'your_client_secret_here')
-REDIRECT_URI = os.getenv('REDIRECT_URI', 'https://share.streamlit.io/')
+REDIRECT_URI = os.getenv('REDIRECT_URI', 'https://stravastats.streamlit.app')
 
 # Page config
 st.set_page_config(
@@ -279,7 +280,7 @@ def main():
         ['date', 'distance_km', 'moving_time_hours']
     ].copy()
     recent_activities['pace'] = recent_activities['moving_time_hours'] / recent_activities['distance_km']
-    recent_activities['date_ordinal'] = recent_activities['date'].map(pd.Timestamp.toordinal)
+    recent_activities['date_ordinal'] = pd.to_datetime(recent_activities['date']).map(pd.Timestamp.toordinal)
     # Fit linear regression model
     X = recent_activities[['date_ordinal']]
     y = recent_activities['pace']
