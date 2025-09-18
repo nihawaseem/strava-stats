@@ -279,7 +279,7 @@ def main():
     recent_activities = filtered_df.head(10)[
         ['date', 'distance_km', 'moving_time_hours']
     ].copy()
-    recent_activities['pace'] = recent_activities['moving_time_hours'] / recent_activities['distance_km']
+    recent_activities['pace'] =  recent_activities['distance_km'] / recent_activities['moving_time_hours']
     recent_activities['date_ordinal'] = pd.to_datetime(recent_activities['date']).map(pd.Timestamp.toordinal)
     # Fit linear regression model
     X = recent_activities[['date_ordinal']]
