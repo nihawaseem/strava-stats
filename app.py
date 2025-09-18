@@ -6,21 +6,25 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import os
 from urllib.parse import urlencode
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.linear_model import LinearRegression
+
 
 # Strava API configuration
 STRAVA_CLIENT_ID = os.getenv('STRAVA_CLIENT_ID', 'your_client_id_here')
 STRAVA_CLIENT_SECRET = os.getenv('STRAVA_CLIENT_SECRET', 'your_client_secret_here')
-REDIRECT_URI = os.getenv('REDIRECT_URI', 'http://localhost:8501')
+REDIRECT_URI = os.getenv('REDIRECT_URI', 'https://share.streamlit.io/')
 
 # Page config
 st.set_page_config(
-    page_title="Strava Dashboard",
-    page_icon="🏃‍♂️",
+    page_title="strava stats",
+    page_icon="💃",
     layout="wide"
 )
 
+#  Generate Strava OAuth authorization URL
 def get_authorization_url():
-    """Generate Strava OAuth authorization URL"""
     params = {
         'client_id': STRAVA_CLIENT_ID,
         'response_type': 'code',
@@ -30,8 +34,8 @@ def get_authorization_url():
     }
     return f"https://www.strava.com/oauth/authorize?{urlencode(params)}"
 
+#  Exchange authorization code for access token
 def exchange_code_for_token(code):
-    """Exchange authorization code for access token"""
     data = {
         'client_id': STRAVA_CLIENT_ID,
         'client_secret': STRAVA_CLIENT_SECRET,
@@ -44,8 +48,8 @@ def exchange_code_for_token(code):
         return response.json()
     return None
 
+#  Refresh expired access token
 def refresh_access_token(refresh_token):
-    """Refresh expired access token"""
     data = {
         'client_id': STRAVA_CLIENT_ID,
         'client_secret': STRAVA_CLIENT_SECRET,
@@ -58,8 +62,8 @@ def refresh_access_token(refresh_token):
         return response.json()
     return None
 
+#  Fetch activities from Strava API
 def get_activities(access_token, per_page=30, page=1):
-    """Fetch activities from Strava API"""
     headers = {'Authorization': f'Bearer {access_token}'}
     params = {
         'per_page': per_page,
@@ -82,8 +86,8 @@ def get_activities(access_token, per_page=30, page=1):
         st.error(f"Error fetching activities: {response.status_code}")
         return None
 
+#  Convert activities to pandas DataFrame and clean data
 def process_activities_data(activities):
-    """Convert activities to pandas DataFrame and clean data"""
     if not activities:
         return pd.DataFrame()
     
@@ -110,8 +114,8 @@ def process_activities_data(activities):
     
     return df
 
+#  Create summary metrics for the dashboard
 def create_summary_metrics(df):
-    """Create summary metrics for the dashboard"""
     if df.empty:
         return {}
     
@@ -128,7 +132,7 @@ def create_summary_metrics(df):
     }
 
 def main():
-    st.title("🏃‍♂️ Strava Dashboard Prototype")
+    st.title("💃 strava stats")
     
     # Check if we have stored tokens
     if 'access_token' not in st.session_state:
@@ -157,7 +161,7 @@ def main():
         st.write("**Setup Instructions:**")
         st.write("1. Go to https://www.strava.com/settings/api")
         st.write("2. Create a new application")
-        st.write("3. Set Authorization Callback Domain to: `localhost`")
+        st.write("3. Set Authorization Callback Domain to: `stravastats.streamlit.io`")
         st.write("4. Add your Client ID and Client Secret to environment variables")
         
         if st.button("🚀 Connect to Strava", type="primary"):
@@ -168,7 +172,7 @@ def main():
         return
     
     # Main dashboard
-    st.header("📊 Your Activity Dashboard")
+    st.header("doing statistics with strava")
     
     # Fetch activities
     with st.spinner("Fetching your activities..."):
@@ -268,6 +272,44 @@ def main():
     recent_activities.columns = ['Activity', 'Type', 'Date', 'Distance (km)', 'Time (hrs)', 'Elevation (m)']
     recent_activities = recent_activities.round(2)
     st.dataframe(recent_activities, use_container_width=True)
+
+    # Regression
+    st.subheader("🕐 Predicted pace")
+    recent_activities = filtered_df.head(10)[
+        ['date', 'distance_km', 'moving_time_hours']
+    ].copy()
+    recent_activities['pace'] = recent_activities['moving_time_hours'] / recent_activities['distance_km']
+    recent_activities['date_ordinal'] = recent_activities['date'].map(pd.Timestamp.toordinal)
+    # Fit linear regression model
+    X = recent_activities[['date_ordinal']]
+    y = recent_activities['pace']
+    model = LinearRegression()
+    model.fit(X, y)
+
+    # Add predicted values
+    recent_activities['predicted_pace'] = model.predict(X)
+
+    # Plot actual vs predicted
+    pred_pace = px.line(
+            recent_activities.sort_values('date'),
+            x='date',
+            y='predicted_pace',
+            title="Regression fit to pace over time"
+        )
+    
+    pred_pace.add_trace(
+    go.Scatter(
+        x=recent_activities['date'],
+        y=recent_activities['pace'],
+        mode='markers',
+        name='Actual Pace',
+        marker=dict(color='blue', size=6)
+    )
+)
+    
+    pred_pace.update_layout(height=400)
+    st.plotly_chart(pred_pace, use_container_width=True)
+    st.plotly_chart(pred_pace, use_container_width=True)
     
     # Reset authentication
     if st.button("🚪 Logout"):
