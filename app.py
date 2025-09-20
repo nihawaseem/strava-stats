@@ -15,7 +15,7 @@ from dotenv import load_dotenv
 load_dotenv()
 STRAVA_CLIENT_ID = os.getenv('STRAVA_CLIENT_ID', 'your_client_id_here')
 STRAVA_CLIENT_SECRET = os.getenv('STRAVA_CLIENT_SECRET', 'your_client_secret_here')
-REDIRECT_URI = os.getenv('REDIRECT_URI', 'https://stravastats.streamlit.app')
+REDIRECT_URI = os.getenv('REDIRECT_URI', 'http://stravastats.streamlit.io')
 
 # Page config
 st.set_page_config(
@@ -201,13 +201,9 @@ def main():
     
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        st.metric("Total Activities", metrics['total_activities'])
-    with col2:
         st.metric("Total Distance", f"{metrics['total_distance_km']} km")
-    with col3:
-        st.metric("Total Time", f"{metrics['total_time_hours']} hrs")
-    with col4:
-        st.metric("Avg Distance", f"{metrics['avg_distance_km']} km")
+    with col2:
+        st.metric("Average distance per activity", f"{metrics['avg_distance_km']} km")
     
     # Activity type filter
     activity_types = df['sport_type'].unique()
@@ -223,7 +219,7 @@ def main():
     col1, col2 = st.columns(2)
     
     with col1:
-        st.subheader("📈 Distance Over Time")
+        st.subheader("Distance Over Time")
         fig_distance = px.line(
             filtered_df.sort_values('start_date_local'),
             x='start_date_local',
@@ -235,44 +231,48 @@ def main():
         st.plotly_chart(fig_distance, use_container_width=True)
     
     with col2:
-        st.subheader("🏃‍♂️ Activities by Type")
+        st.subheader("Activities by Type")
         activity_counts = filtered_df['sport_type'].value_counts()
         fig_pie = px.pie(
             values=activity_counts.values,
             names=activity_counts.index,
-            title="Activity Distribution"
+            title="Activity type distribution"
         )
         fig_pie.update_layout(height=400)
         st.plotly_chart(fig_pie, use_container_width=True)
     
     # Weekly summary
-    st.subheader("📅 Weekly Summary")
+    st.subheader("Weekly Summary")
     filtered_df['week'] = filtered_df['start_date_local'].dt.to_period('W')
     weekly_summary = filtered_df.groupby('week').agg({
         'distance_km': 'sum',
         'moving_time_hours': 'sum',
         'name': 'count'
     }).reset_index()
-    weekly_summary.columns = ['Week', 'Total Distance (km)', 'Total Time (hrs)', 'Activities']
-    weekly_summary['Week'] = weekly_summary['Week'].astype(str)
-    
+    weekly_summary.columns = ['Week', 'Total distance (km)', 'Total Time (hrs)', 'Activities']
+    # weekly_summary['Week'] = weekly_summary['Week'].astype(str)
+
+    weekly_summary['month'] = weekly_summary['Week'].dt.start_time.dt.strftime('%B')
+    weekly_summary['week_num'] = weekly_summary['Week'].dt.start_time.dt.strftime('Week %U')
+    # weekly_summary['month_week'] = weekly_summary['Week'] + '<br>' + weekly_summary['week_num']
+
     fig_weekly = px.bar(
         weekly_summary.tail(8),  # Last 8 weeks
         x='Week',
-        y='Total Distance (km)',
-        title="Weekly Distance Summary"
+        y='Total distance (km)',
+        title="Weekly distance"
     )
     fig_weekly.update_layout(height=400)
     st.plotly_chart(fig_weekly, use_container_width=True)
     
     # Recent activities table
-    st.subheader("🕐 Recent Activities")
-    recent_activities = filtered_df.head(10)[
-        ['name', 'sport_type', 'date', 'distance_km', 'moving_time_hours', 'elevation_gain_m']
-    ].copy()
-    recent_activities.columns = ['Activity', 'Type', 'Date', 'Distance (km)', 'Time (hrs)', 'Elevation (m)']
-    recent_activities = recent_activities.round(2)
-    st.dataframe(recent_activities, use_container_width=True)
+    # st.subheader("Recent Activities")
+    # recent_activities = filtered_df.head(10)[
+    #     ['name', 'sport_type', 'date', 'distance_km', 'moving_time_hours', 'elevation_gain_m']
+    # ].copy()
+    # recent_activities.columns = ['Activity', 'Type', 'Date', 'Distance (km)', 'Time (hrs)', 'Elevation (m)']
+    # recent_activities = recent_activities.round(2)
+    # st.dataframe(recent_activities, use_container_width=True)
 
     # Regression
     st.subheader("🕐 Predicted pace")
@@ -307,7 +307,6 @@ def main():
         marker=dict(color='blue', size=6)
     )
 )
-    
     pred_pace.update_layout(height=400)
     st.plotly_chart(pred_pace, use_container_width=True)
     
